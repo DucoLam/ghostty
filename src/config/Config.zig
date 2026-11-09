@@ -705,6 +705,18 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 /// Available since: 1.2.0
 @"background-image-repeat": bool = false,
 
+/// Background video for the window (macOS only, fork feature).
+///
+/// Path to a video file (anything AVFoundation can play, e.g. MP4 or MOV).
+/// Unlike `background-image`, the video is drawn once per window, behind
+/// all splits, and loops silently. It pauses while the window is hidden.
+///
+/// The video only shows through where the terminal is transparent, so set
+/// `background-opacity` below `1` (for example `0.7`). Changing the path
+/// takes effect on config reload; changing `background-opacity` needs a
+/// restart on macOS.
+@"background-video": ?Path = null,
+
 /// The foreground and background color for selection. If this is not set, then
 /// the selection color is just the inverted window background and foreground
 /// (note: not to be confused with the cell bg/fg).

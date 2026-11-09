@@ -1,10 +1,14 @@
 import AppKit
+import AVFoundation
 import SwiftUI
 
 /// Use this container to achieve a glass effect at the window level.
 /// Modifying `NSThemeFrame` can sometimes be unpredictable.
 class TerminalViewContainer: NSView {
     private let terminalView: NSView
+
+    /// Window-wide looping video drawn behind all splits (`background-video`).
+    private var backgroundVideoView: TerminalBackgroundVideoView?
 
     /// Background color applied with glass effect
     private(set) var glassEffectView: NSView?
@@ -75,6 +79,8 @@ class TerminalViewContainer: NSView {
     }
 
     func ghosttyConfigDidChange(_ config: Ghostty.Config, preferredBackgroundColor: NSColor?) {
+        updateBackgroundVideo(path: config.backgroundVideoPath)
+
         let newValue = DerivedConfig(config: config, preferredBackgroundColor: preferredBackgroundColor, cornerRadius: windowCornerRadius)
         guard newValue != derivedConfig else { return }
         derivedConfig = newValue
@@ -85,6 +91,103 @@ class TerminalViewContainer: NSView {
             updateGlassEffectIfNeeded()
         } else {
             DispatchQueue.main.async(execute: updateGlassEffectIfNeeded)
+        }
+    }
+}
+
+// MARK: - Background video
+
+extension TerminalViewContainer {
+    fileprivate func updateBackgroundVideo(path: String?) {
+        guard let path else {
+            backgroundVideoView?.removeFromSuperview()
+            backgroundVideoView = nil
+            return
+        }
+
+        let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+        let videoView: TerminalBackgroundVideoView
+        if let existing = backgroundVideoView {
+            videoView = existing
+        } else {
+            videoView = TerminalBackgroundVideoView()
+            addSubview(videoView, positioned: .below, relativeTo: terminalView)
+            NSLayoutConstraint.activate([
+                videoView.topAnchor.constraint(equalTo: topAnchor),
+                videoView.leadingAnchor.constraint(equalTo: leadingAnchor),
+                videoView.bottomAnchor.constraint(equalTo: bottomAnchor),
+                videoView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            ])
+            backgroundVideoView = videoView
+        }
+        videoView.load(url: url)
+    }
+}
+
+/// A muted, looping, aspect-filling video that ignores mouse events and
+/// pauses while its window is not visible.
+final class TerminalBackgroundVideoView: NSView {
+    private let player = AVQueuePlayer()
+    private let playerLayer = AVPlayerLayer()
+    private var looper: AVPlayerLooper?
+    private var currentURL: URL?
+    private var occlusionObserver: NSObjectProtocol?
+
+    init() {
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        player.isMuted = true
+        player.preventsDisplaySleepDuringVideoPlayback = false
+        playerLayer.player = player
+        playerLayer.videoGravity = .resizeAspectFill
+        // Layer-hosting view: set the layer before wantsLayer.
+        layer = playerLayer
+        wantsLayer = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        if let occlusionObserver {
+            NotificationCenter.default.removeObserver(occlusionObserver)
+        }
+    }
+
+    func load(url: URL) {
+        guard url != currentURL else { return }
+        currentURL = url
+        player.removeAllItems()
+        looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: url))
+        updatePlayback()
+    }
+
+    // Clicks and drags go to the terminal, never to the video.
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let occlusionObserver {
+            NotificationCenter.default.removeObserver(occlusionObserver)
+            self.occlusionObserver = nil
+        }
+        if let window {
+            occlusionObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didChangeOcclusionStateNotification,
+                object: window,
+                queue: .main
+            ) { [weak self] _ in self?.updatePlayback() }
+        }
+        updatePlayback()
+    }
+
+    private func updatePlayback() {
+        if let window, window.occlusionState.contains(.visible) {
+            player.play()
+        } else {
+            player.pause()
         }
     }
 }
