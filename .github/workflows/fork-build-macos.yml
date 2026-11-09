@@ -1,0 +1,42 @@
+name: Fork build (macOS app)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [background-video]
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          XCODE="$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+          xcodebuild -downloadComponent MetalToolchain || true
+
+      - name: Install Zig
+        run: brew install zig && zig version
+
+      - name: Build GhosttyKit
+        run: zig build -Doptimize=ReleaseFast -Demit-macos-app=false
+
+      - name: Build Ghostty.app
+        run: |
+          cd macos
+          xcodebuild -target Ghostty -configuration Release \
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO
+
+      - name: Package
+        run: ditto -c -k --keepParent macos/build/Release/Ghostty.app Ghostty.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ghostty-background-video
+          path: Ghostty.zip
+          retention-days: 7
