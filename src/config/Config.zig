@@ -1038,6 +1038,14 @@ palette: Palette = .{},
 /// Available since: 1.2.0
 @"background-opacity-cells": bool = false,
 
+/// Minimum opacity for cells with an explicit background color when
+/// `background-opacity-cells` is `true`. Cell backgrounds use
+/// `max(background-opacity, background-opacity-cells-min)`, so the window
+/// can be fully see-through while colored cells (such as a selection that a
+/// mouse-capturing app paints itself) stay visible. Value must be between
+/// 0.0 and 1.0. Defaults to 0, which keeps the upstream behavior.
+@"background-opacity-cells-min": f64 = 0,
+
 /// Whether to blur the background when `background-opacity` is less than 1.
 ///
 /// Valid values are:
