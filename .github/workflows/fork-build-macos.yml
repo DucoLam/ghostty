@@ -3,7 +3,7 @@ name: Fork build (macOS app)
 on:
   workflow_dispatch:
   push:
-    branches: [background-video]
+    branches: [background-video, background-video-url]
 
 jobs:
   build:

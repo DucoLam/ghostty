@@ -153,6 +153,16 @@ extension Ghostty {
             return path.isEmpty ? nil : path
         }
 
+        var backgroundVideoURL: String? {
+            guard let config = self.config else { return nil }
+            var v: UnsafePointer<Int8>?
+            let key = "background-video-url"
+            guard ghostty_config_get(config, &v, key, UInt(key.lengthOfBytes(using: .utf8))) else { return nil }
+            guard let ptr = v else { return nil }
+            let url = String(cString: ptr)
+            return url.isEmpty ? nil : url
+        }
+
         var bellAudioVolume: Float {
             guard let config = self.config else { return 0.5 }
             var v: Double = 0.5

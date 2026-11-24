@@ -717,6 +717,23 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 /// restart on macOS.
 @"background-video": ?Path = null,
 
+/// Remote background video for the window (macOS only, fork feature).
+///
+/// An `http(s)` URL to play behind all splits, like `background-video`.
+/// YouTube links work, including livestreams (for example
+/// `https://www.youtube.com/@LofiGirl/live` or a `watch?v=` link), as does
+/// any other page that `yt-dlp` supports. Those are resolved with `yt-dlp`,
+/// which must be installed (`brew install yt-dlp`). Direct `.m3u8`, `.mp4`,
+/// `.m4v` and `.mov` URLs play without `yt-dlp`.
+///
+/// Livestreams play live and jump back to the live edge when the window
+/// becomes visible again; other videos loop. The stream is played muted at
+/// up to 1080p, re-resolved every few hours (YouTube stream URLs expire), and
+/// retried with backoff when it fails or the stream goes offline.
+///
+/// When set, this takes precedence over `background-video`.
+@"background-video-url": ?[:0]const u8 = null,
+
 /// The foreground and background color for selection. If this is not set, then
 /// the selection color is just the inverted window background and foreground
 /// (note: not to be confused with the cell bg/fg).
